@@ -48,9 +48,9 @@ export function ConnectionStatus({ connected, lastUpdate }: ConnectionStatusProp
         </TooltipTrigger>
         <TooltipContent>
           <p>
-            {connected 
-              ? "Real-time updates active" 
-              : "Real-time updates unavailable"
+            {connected
+              ? "Auto-refresh enabled"
+              : "Auto-refresh disabled"
             }
           </p>
         </TooltipContent>
