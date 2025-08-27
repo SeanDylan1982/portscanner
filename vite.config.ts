@@ -29,11 +29,25 @@ function expressPlugin(): Plugin {
   return {
     name: "express-plugin",
     apply: "serve", // Only apply during development (serve mode)
-    configureServer(server) {
-      const app = createServer();
+    configureServer(viteServer) {
+      const httpServer = createServer();
+
+      // Extract the Express app from the HTTP server
+      const expressApp = (httpServer as any).app || httpServer;
 
       // Add Express app as middleware to Vite dev server
-      server.middlewares.use(app);
+      viteServer.middlewares.use(expressApp);
+
+      // Handle WebSocket upgrade on the Vite server
+      const originalServer = viteServer.httpServer;
+      if (originalServer) {
+        originalServer.on('upgrade', (request, socket, head) => {
+          if (request.url?.startsWith('/')) {
+            // Forward WebSocket upgrades to our HTTP server
+            (httpServer as any).emit('upgrade', request, socket, head);
+          }
+        });
+      }
     },
   };
 }
