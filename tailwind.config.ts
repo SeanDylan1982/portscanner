@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["Inter", "sans-serif"],
+        mono: ["JetBrains Mono", "Consolas", "Monaco", "Courier New", "monospace"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -57,6 +61,23 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
+        },
+        "port-listening": "hsl(var(--port-listening))",
+        "port-established": "hsl(var(--port-established))",
+        "port-time-wait": "hsl(var(--port-time-wait))",
+        "port-closed": "hsl(var(--port-closed))",
+        "port-unknown": "hsl(var(--port-unknown))",
       },
       borderRadius: {
         lg: "var(--radius)",
