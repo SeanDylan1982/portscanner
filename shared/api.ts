@@ -17,7 +17,17 @@ export interface DemoResponse {
 export interface PortInfo {
   port: number;
   protocol: "tcp" | "udp";
-  state: "LISTENING" | "ESTABLISHED" | "TIME_WAIT" | "CLOSE_WAIT" | "SYN_SENT" | "SYN_RECV" | "FIN_WAIT1" | "FIN_WAIT2" | "LAST_ACK" | "CLOSED";
+  state:
+    | "LISTENING"
+    | "ESTABLISHED"
+    | "TIME_WAIT"
+    | "CLOSE_WAIT"
+    | "SYN_SENT"
+    | "SYN_RECV"
+    | "FIN_WAIT1"
+    | "FIN_WAIT2"
+    | "LAST_ACK"
+    | "CLOSED";
   pid?: number;
   processName?: string;
   address: string;

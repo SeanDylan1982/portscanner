@@ -15,7 +15,13 @@ export default {
     extend: {
       fontFamily: {
         sans: ["Inter", "sans-serif"],
-        mono: ["JetBrains Mono", "Consolas", "Monaco", "Courier New", "monospace"],
+        mono: [
+          "JetBrains Mono",
+          "Consolas",
+          "Monaco",
+          "Courier New",
+          "monospace",
+        ],
       },
       colors: {
         border: "hsl(var(--border))",

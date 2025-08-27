@@ -1,7 +1,13 @@
 import { PortInfo } from "@shared/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Shield, AlertTriangle, CheckCircle, Circle } from "lucide-react";
+import {
+  Activity,
+  Shield,
+  AlertTriangle,
+  CheckCircle,
+  Circle,
+} from "lucide-react";
 
 interface PortStatsProps {
   ports: PortInfo[];
@@ -10,12 +16,12 @@ interface PortStatsProps {
 export function PortStats({ ports }: PortStatsProps) {
   const stats = {
     total: ports.length,
-    listening: ports.filter(p => p.state === "LISTENING").length,
-    established: ports.filter(p => p.state === "ESTABLISHED").length,
-    timeWait: ports.filter(p => p.state === "TIME_WAIT").length,
-    tcp: ports.filter(p => p.protocol === "tcp").length,
-    udp: ports.filter(p => p.protocol === "udp").length,
-    withProcess: ports.filter(p => p.pid && p.processName).length,
+    listening: ports.filter((p) => p.state === "LISTENING").length,
+    established: ports.filter((p) => p.state === "ESTABLISHED").length,
+    timeWait: ports.filter((p) => p.state === "TIME_WAIT").length,
+    tcp: ports.filter((p) => p.protocol === "tcp").length,
+    udp: ports.filter((p) => p.protocol === "udp").length,
+    withProcess: ports.filter((p) => p.pid && p.processName).length,
   };
 
   const statCards = [

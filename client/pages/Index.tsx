@@ -4,7 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PortTable } from "@/components/PortTable";
 import { PortStats } from "@/components/PortStats";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
@@ -35,16 +41,16 @@ export default function Index() {
 
       setError(null);
 
-      const response = await fetch('/api/ports');
+      const response = await fetch("/api/ports");
       if (!response.ok) {
-        throw new Error('Failed to fetch ports');
+        throw new Error("Failed to fetch ports");
       }
 
       const data: PortsResponse = await response.json();
       setPorts(data.ports);
       setLastUpdate(new Date(data.timestamp));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       if (!isBackgroundRefresh) {
         setIsInitialLoading(false);
@@ -75,22 +81,23 @@ export default function Index() {
 
     // Protocol filter
     if (protocolFilter !== "all") {
-      filtered = filtered.filter(port => port.protocol === protocolFilter);
+      filtered = filtered.filter((port) => port.protocol === protocolFilter);
     }
 
     // State filter
     if (stateFilter !== "all") {
-      filtered = filtered.filter(port => port.state === stateFilter);
+      filtered = filtered.filter((port) => port.state === stateFilter);
     }
 
     // Search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(port =>
-        port.port.toString().includes(term) ||
-        port.processName?.toLowerCase().includes(term) ||
-        port.address.toLowerCase().includes(term) ||
-        port.state.toLowerCase().includes(term)
+      filtered = filtered.filter(
+        (port) =>
+          port.port.toString().includes(term) ||
+          port.processName?.toLowerCase().includes(term) ||
+          port.address.toLowerCase().includes(term) ||
+          port.state.toLowerCase().includes(term),
       );
     }
 
@@ -142,9 +149,12 @@ export default function Index() {
                 Dev Tool
               </Badge>
             </div>
-            
+
             <div className="flex items-center space-x-4">
-              <ConnectionStatus connected={autoRefresh} lastUpdate={lastUpdate} />
+              <ConnectionStatus
+                connected={autoRefresh}
+                lastUpdate={lastUpdate}
+              />
               {isRefreshing && (
                 <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                   <RefreshCw className="h-3 w-3 animate-spin" />
@@ -155,7 +165,11 @@ export default function Index() {
                 variant="outline"
                 size="sm"
                 onClick={() => setAutoRefresh(!autoRefresh)}
-                className={autoRefresh ? "bg-green-900/20 text-green-400 border-green-900/30" : ""}
+                className={
+                  autoRefresh
+                    ? "bg-green-900/20 text-green-400 border-green-900/30"
+                    : ""
+                }
               >
                 <Activity className="h-4 w-4 mr-2" />
                 {autoRefresh ? "Auto Refresh On" : "Auto Refresh Off"}
@@ -166,7 +180,12 @@ export default function Index() {
                 onClick={() => fetchPorts(false)}
                 disabled={isInitialLoading || isRefreshing}
               >
-                <RefreshCw className={cn("h-4 w-4 mr-2", (isInitialLoading || isRefreshing) && "animate-spin")} />
+                <RefreshCw
+                  className={cn(
+                    "h-4 w-4 mr-2",
+                    (isInitialLoading || isRefreshing) && "animate-spin",
+                  )}
+                />
                 Refresh
               </Button>
             </div>
@@ -197,10 +216,13 @@ export default function Index() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <label className="text-sm font-medium">Protocol</label>
-                <Select value={protocolFilter} onValueChange={setProtocolFilter}>
+                <Select
+                  value={protocolFilter}
+                  onValueChange={setProtocolFilter}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -211,7 +233,7 @@ export default function Index() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <label className="text-sm font-medium">State</label>
                 <Select value={stateFilter} onValueChange={setStateFilter}>
@@ -232,7 +254,11 @@ export default function Index() {
         </Card>
 
         {/* Port Table */}
-        <PortTable ports={filteredPorts} onRefresh={() => fetchPorts(true)} isRefreshing={isRefreshing} />
+        <PortTable
+          ports={filteredPorts}
+          onRefresh={() => fetchPorts(true)}
+          isRefreshing={isRefreshing}
+        />
       </main>
     </div>
   );

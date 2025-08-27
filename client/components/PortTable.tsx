@@ -3,11 +3,48 @@ import { PortInfo, ProcessOperationResponse } from "@shared/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Network, Trash2, RotateCcw, Info, ExternalLink, Terminal, RefreshCw } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Network,
+  Trash2,
+  RotateCcw,
+  Info,
+  ExternalLink,
+  Terminal,
+  RefreshCw,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
@@ -17,7 +54,11 @@ interface PortTableProps {
   isRefreshing?: boolean;
 }
 
-export function PortTable({ ports, onRefresh, isRefreshing = false }: PortTableProps) {
+export function PortTable({
+  ports,
+  onRefresh,
+  isRefreshing = false,
+}: PortTableProps) {
   const [killingPorts, setKillingPorts] = useState<Set<number>>(new Set());
   const [selectedPort, setSelectedPort] = useState<PortInfo | null>(null);
 
@@ -50,13 +91,13 @@ export function PortTable({ ports, onRefresh, isRefreshing = false }: PortTableP
       return;
     }
 
-    setKillingPorts(prev => new Set([...prev, port.port]));
+    setKillingPorts((prev) => new Set([...prev, port.port]));
 
     try {
-      const response = await fetch('/api/ports/kill', {
-        method: 'POST',
+      const response = await fetch("/api/ports/kill", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           pid: port.pid,
@@ -83,7 +124,7 @@ export function PortTable({ ports, onRefresh, isRefreshing = false }: PortTableP
         variant: "destructive",
       });
     } finally {
-      setKillingPorts(prev => {
+      setKillingPorts((prev) => {
         const newSet = new Set(prev);
         newSet.delete(port.port);
         return newSet;
@@ -121,11 +162,18 @@ export function PortTable({ ports, onRefresh, isRefreshing = false }: PortTableP
   }
 
   return (
-    <Card className={cn("transition-opacity duration-200", isRefreshing && "opacity-90")}>
+    <Card
+      className={cn(
+        "transition-opacity duration-200",
+        isRefreshing && "opacity-90",
+      )}
+    >
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Network className={cn("h-5 w-5", isRefreshing && "animate-pulse")} />
+            <Network
+              className={cn("h-5 w-5", isRefreshing && "animate-pulse")}
+            />
             <span>Active Ports</span>
             <Badge variant="outline">{ports.length} ports</Badge>
             {isRefreshing && (
@@ -162,14 +210,21 @@ export function PortTable({ ports, onRefresh, isRefreshing = false }: PortTableP
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
-                      <span className="text-lg">{getProtocolIcon(port.protocol)}</span>
+                      <span className="text-lg">
+                        {getProtocolIcon(port.protocol)}
+                      </span>
                       <span className="font-mono text-sm uppercase">
                         {port.protocol}
                       </span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge className={cn("port-status-badge", getStateColor(port.state))}>
+                    <Badge
+                      className={cn(
+                        "port-status-badge",
+                        getStateColor(port.state),
+                      )}
+                    >
                       {port.state}
                     </Badge>
                   </TableCell>
@@ -189,7 +244,9 @@ export function PortTable({ ports, onRefresh, isRefreshing = false }: PortTableP
                   <TableCell>
                     {port.processName ? (
                       <div className="space-y-1">
-                        <div className="font-medium text-sm">{port.processName}</div>
+                        <div className="font-medium text-sm">
+                          {port.processName}
+                        </div>
                         {port.processPath && (
                           <div className="text-xs text-muted-foreground font-mono truncate max-w-[200px]">
                             {port.processPath}
@@ -232,45 +289,74 @@ export function PortTable({ ports, onRefresh, isRefreshing = false }: PortTableP
                           <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <label className="text-sm font-medium">Port</label>
+                                <label className="text-sm font-medium">
+                                  Port
+                                </label>
                                 <p className="font-mono">{port.port}</p>
                               </div>
                               <div>
-                                <label className="text-sm font-medium">Protocol</label>
-                                <p className="font-mono uppercase">{port.protocol}</p>
+                                <label className="text-sm font-medium">
+                                  Protocol
+                                </label>
+                                <p className="font-mono uppercase">
+                                  {port.protocol}
+                                </p>
                               </div>
                               <div>
-                                <label className="text-sm font-medium">State</label>
-                                <Badge className={cn("port-status-badge", getStateColor(port.state))}>
+                                <label className="text-sm font-medium">
+                                  State
+                                </label>
+                                <Badge
+                                  className={cn(
+                                    "port-status-badge",
+                                    getStateColor(port.state),
+                                  )}
+                                >
                                   {port.state}
                                 </Badge>
                               </div>
                               <div>
-                                <label className="text-sm font-medium">Address</label>
-                                <p className="font-mono text-sm">{port.address}</p>
+                                <label className="text-sm font-medium">
+                                  Address
+                                </label>
+                                <p className="font-mono text-sm">
+                                  {port.address}
+                                </p>
                               </div>
                               {port.foreignAddress && (
                                 <div className="col-span-2">
-                                  <label className="text-sm font-medium">Foreign Address</label>
-                                  <p className="font-mono text-sm">{port.foreignAddress}</p>
+                                  <label className="text-sm font-medium">
+                                    Foreign Address
+                                  </label>
+                                  <p className="font-mono text-sm">
+                                    {port.foreignAddress}
+                                  </p>
                                 </div>
                               )}
                               {port.pid && (
                                 <div>
-                                  <label className="text-sm font-medium">Process ID</label>
+                                  <label className="text-sm font-medium">
+                                    Process ID
+                                  </label>
                                   <p className="font-mono">{port.pid}</p>
                                 </div>
                               )}
                               {port.processName && (
                                 <div>
-                                  <label className="text-sm font-medium">Process Name</label>
+                                  <label className="text-sm font-medium">
+                                    Process Name
+                                  </label>
                                   <p>{port.processName}</p>
                                 </div>
                               )}
                               {port.processPath && (
                                 <div className="col-span-2">
-                                  <label className="text-sm font-medium">Process Path</label>
-                                  <p className="font-mono text-sm break-all">{port.processPath}</p>
+                                  <label className="text-sm font-medium">
+                                    Process Path
+                                  </label>
+                                  <p className="font-mono text-sm break-all">
+                                    {port.processPath}
+                                  </p>
                                 </div>
                               )}
                             </div>
@@ -295,8 +381,9 @@ export function PortTable({ ports, onRefresh, isRefreshing = false }: PortTableP
                             <AlertDialogHeader>
                               <AlertDialogTitle>Kill Process</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to kill the process (PID: {port.pid}) 
-                                running on port {port.port}? This action cannot be undone.
+                                Are you sure you want to kill the process (PID:{" "}
+                                {port.pid}) running on port {port.port}? This
+                                action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>

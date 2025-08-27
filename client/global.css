@@ -58,7 +58,7 @@
     --warning-foreground: 26 83% 14%;
     --info: 199 89% 48%;
     --info-foreground: 0 0% 98%;
-    
+
     /* Port state colors */
     --port-listening: 142 76% 36%;
     --port-established: 199 89% 48%;
@@ -112,7 +112,7 @@
     --warning-foreground: 26 83% 14%;
     --info: 199 89% 48%;
     --info-foreground: 0 0% 98%;
-    
+
     /* Port state colors - light mode */
     --port-listening: 142 76% 36%;
     --port-established: 199 89% 48%;
@@ -131,8 +131,11 @@
     @apply bg-background text-foreground font-sans;
   }
 
-  code, pre, .font-mono {
-    font-family: "JetBrains Mono", "Consolas", "Monaco", "Courier New", monospace;
+  code,
+  pre,
+  .font-mono {
+    font-family:
+      "JetBrains Mono", "Consolas", "Monaco", "Courier New", monospace;
   }
 }
 
