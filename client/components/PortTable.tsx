@@ -17,7 +17,7 @@ interface PortTableProps {
   isRefreshing?: boolean;
 }
 
-export function PortTable({ ports, onRefresh }: PortTableProps) {
+export function PortTable({ ports, onRefresh, isRefreshing = false }: PortTableProps) {
   const [killingPorts, setKillingPorts] = useState<Set<number>>(new Set());
   const [selectedPort, setSelectedPort] = useState<PortInfo | null>(null);
 
