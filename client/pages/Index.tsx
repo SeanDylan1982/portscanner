@@ -134,7 +134,16 @@ export default function Index() {
             </div>
             
             <div className="flex items-center space-x-4">
-              <ConnectionStatus connected={wsConnected} lastUpdate={lastUpdate} />
+              <ConnectionStatus connected={autoRefresh} lastUpdate={lastUpdate} />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className={autoRefresh ? "bg-green-900/20 text-green-400 border-green-900/30" : ""}
+              >
+                <Activity className="h-4 w-4 mr-2" />
+                {autoRefresh ? "Auto Refresh On" : "Auto Refresh Off"}
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
