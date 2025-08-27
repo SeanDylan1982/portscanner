@@ -14,6 +14,7 @@ import { toast } from "@/hooks/use-toast";
 interface PortTableProps {
   ports: PortInfo[];
   onRefresh: () => void;
+  isRefreshing?: boolean;
 }
 
 export function PortTable({ ports, onRefresh }: PortTableProps) {
