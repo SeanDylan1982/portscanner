@@ -121,13 +121,19 @@ export function PortTable({ ports, onRefresh, isRefreshing = false }: PortTableP
   }
 
   return (
-    <Card>
+    <Card className={cn("transition-opacity duration-200", isRefreshing && "opacity-90")}>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <Network className="h-5 w-5" />
+            <Network className={cn("h-5 w-5", isRefreshing && "animate-pulse")} />
             <span>Active Ports</span>
             <Badge variant="outline">{ports.length} ports</Badge>
+            {isRefreshing && (
+              <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                <RefreshCw className="h-3 w-3 animate-spin" />
+                <span>Updating</span>
+              </div>
+            )}
           </div>
         </CardTitle>
       </CardHeader>
