@@ -19,43 +19,19 @@ export default function Index() {
   const [searchTerm, setSearchTerm] = useState("");
   const [protocolFilter, setProtocolFilter] = useState<string>("all");
   const [stateFilter, setStateFilter] = useState<string>("all");
-  const [wsConnected, setWsConnected] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-  // WebSocket connection for real-time updates
+  // Auto-refresh with polling (temporary replacement for WebSocket)
   useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}`;
-    const ws = new WebSocket(wsUrl);
+    if (!autoRefresh) return;
 
-    ws.onopen = () => {
-      setWsConnected(true);
-      console.log('WebSocket connected');
-    };
+    const interval = setInterval(() => {
+      fetchPorts();
+    }, 5000); // Refresh every 5 seconds
 
-    ws.onclose = () => {
-      setWsConnected(false);
-      console.log('WebSocket disconnected');
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const message: PortUpdateMessage = JSON.parse(event.data);
-        handlePortUpdate(message);
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setWsConnected(false);
-    };
-
-    return () => {
-      ws.close();
-    };
-  }, []);
+    return () => clearInterval(interval);
+  }, [autoRefresh]);
 
   // Handle real-time port updates
   const handlePortUpdate = useCallback((message: PortUpdateMessage) => {
