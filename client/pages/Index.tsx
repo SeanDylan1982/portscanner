@@ -14,7 +14,8 @@ import { cn } from "@/lib/utils";
 export default function Index() {
   const [ports, setPorts] = useState<PortInfo[]>([]);
   const [filteredPorts, setFilteredPorts] = useState<PortInfo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [protocolFilter, setProtocolFilter] = useState<string>("all");
