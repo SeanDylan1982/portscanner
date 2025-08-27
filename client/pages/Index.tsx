@@ -23,38 +23,47 @@ export default function Index() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-  // Auto-refresh with polling (temporary replacement for WebSocket)
-  useEffect(() => {
-    if (!autoRefresh) return;
-
-    const interval = setInterval(() => {
-      fetchPorts();
-    }, 5000); // Refresh every 5 seconds
-
-    return () => clearInterval(interval);
-  }, [autoRefresh]);
-
-
   // Initial port data fetch
-  const fetchPorts = async () => {
+  const fetchPorts = async (isBackgroundRefresh = false) => {
     try {
-      setLoading(true);
+      // Only show main loading state on initial load
+      if (!isBackgroundRefresh) {
+        setIsInitialLoading(true);
+      } else {
+        setIsRefreshing(true);
+      }
+
       setError(null);
-      
+
       const response = await fetch('/api/ports');
       if (!response.ok) {
         throw new Error('Failed to fetch ports');
       }
-      
+
       const data: PortsResponse = await response.json();
       setPorts(data.ports);
       setLastUpdate(new Date(data.timestamp));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
-      setLoading(false);
+      if (!isBackgroundRefresh) {
+        setIsInitialLoading(false);
+      } else {
+        setIsRefreshing(false);
+      }
     }
   };
+
+  // Auto-refresh with polling - using background refresh
+  useEffect(() => {
+    if (!autoRefresh) return;
+
+    const interval = setInterval(() => {
+      fetchPorts(true); // Background refresh
+    }, 5000); // Refresh every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [autoRefresh]);
 
   useEffect(() => {
     fetchPorts();
