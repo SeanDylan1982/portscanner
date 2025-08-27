@@ -1,9 +1,6 @@
 import { WebSocket, WebSocketServer } from 'ws';
 import { PortInfo, PortUpdateMessage } from '@shared/api';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
+import { readFile } from 'fs/promises';
 
 interface PortTracker {
   lastPorts: Map<string, PortInfo>;
@@ -17,80 +14,121 @@ const portTracker: PortTracker = {
 };
 
 /**
- * Parse a single netstat line (simplified version)
+ * Convert hex address to IP address
  */
-function parsePortLine(line: string): PortInfo | null {
-  if (!line.trim()) return null;
-
-  const isWindows = process.platform === 'win32';
-  
-  if (isWindows) {
-    const parts = line.trim().split(/\s+/);
-    if (parts.length >= 5) {
-      const protocol = parts[0].toLowerCase() as "tcp" | "udp";
-      const localAddress = parts[1];
-      const state = parts[3];
-      const pid = parts[4] ? parseInt(parts[4]) : undefined;
-
-      const [address, portStr] = localAddress.split(':');
-      const port = parseInt(portStr);
-
-      if (!isNaN(port)) {
-        return {
-          port,
-          protocol,
-          state: state as any,
-          pid,
-          address: address || '0.0.0.0',
-        };
-      }
+function hexToIp(hex: string): string {
+  if (hex.length === 8) {
+    // IPv4
+    const ip = [];
+    for (let i = 6; i >= 0; i -= 2) {
+      ip.push(parseInt(hex.substr(i, 2), 16));
     }
-  } else {
-    const parts = line.trim().split(/\s+/);
-    if (parts.length >= 6) {
-      const protocol = parts[0].toLowerCase() as "tcp" | "udp";
-      const localAddress = parts[3];
-      const state = parts[5];
-
-      const lastColonIndex = localAddress.lastIndexOf(':');
-      if (lastColonIndex > 0) {
-        const address = localAddress.substring(0, lastColonIndex);
-        const portStr = localAddress.substring(lastColonIndex + 1);
-        const port = parseInt(portStr);
-
-        if (!isNaN(port)) {
-          return {
-            port,
-            protocol,
-            state: state as any,
-            address: address || '0.0.0.0',
-          };
-        }
-      }
+    return ip.join('.');
+  } else if (hex.length === 32) {
+    // IPv6 - simplified conversion
+    const ip = [];
+    for (let i = 0; i < 32; i += 4) {
+      ip.push(hex.substr(i, 4));
     }
+    return ip.join(':').replace(/:(0000:)+/g, '::');
   }
-
-  return null;
+  return hex;
 }
 
 /**
- * Get current ports
+ * Convert hex port to decimal
+ */
+function hexToPort(hex: string): number {
+  return parseInt(hex, 16);
+}
+
+/**
+ * Parse /proc/net/tcp or /proc/net/udp file
+ */
+function parseProcNet(data: string, protocol: "tcp" | "udp"): PortInfo[] {
+  const lines = data.trim().split('\n').slice(1); // Skip header
+  const ports: PortInfo[] = [];
+
+  for (const line of lines) {
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 10) continue;
+
+    try {
+      const localAddress = parts[1];
+      const remoteAddress = parts[2];
+      const state = parts[3];
+
+      const [localHex, localPortHex] = localAddress.split(':');
+      const [remoteHex, remotePortHex] = remoteAddress.split(':');
+
+      const port = hexToPort(localPortHex);
+      const address = hexToIp(localHex);
+      const foreignAddress = remoteHex !== '00000000' ? 
+        `${hexToIp(remoteHex)}:${hexToPort(remotePortHex)}` : undefined;
+
+      // Convert state for TCP
+      let stateStr = "UNKNOWN";
+      if (protocol === "tcp") {
+        const stateMap: { [key: string]: string } = {
+          '01': 'ESTABLISHED',
+          '02': 'SYN_SENT',
+          '03': 'SYN_RECV',
+          '04': 'FIN_WAIT1',
+          '05': 'FIN_WAIT2',
+          '06': 'TIME_WAIT',
+          '07': 'CLOSE',
+          '08': 'CLOSE_WAIT',
+          '09': 'LAST_ACK',
+          '0A': 'LISTENING',
+          '0B': 'CLOSING',
+        };
+        stateStr = stateMap[state] || 'UNKNOWN';
+      } else {
+        stateStr = 'LISTENING'; // UDP is always listening
+      }
+
+      ports.push({
+        port,
+        protocol,
+        state: stateStr as any,
+        address,
+        foreignAddress,
+      });
+    } catch (error) {
+      // Skip malformed lines
+      continue;
+    }
+  }
+
+  return ports;
+}
+
+/**
+ * Get current ports using /proc/net
  */
 async function getCurrentPorts(): Promise<Map<string, PortInfo>> {
   try {
-    const isWindows = process.platform === 'win32';
-    const command = isWindows ? 'netstat -ano' : 'netstat -tulpn';
-    
-    const { stdout } = await execAsync(command);
-    const lines = stdout.split('\n').slice(1);
-    const portsMap = new Map<string, PortInfo>();
+    const [tcpData, udpData] = await Promise.all([
+      readFile('/proc/net/tcp', 'utf8').catch(() => ''),
+      readFile('/proc/net/udp', 'utf8').catch(() => ''),
+    ]);
 
-    for (const line of lines) {
-      const port = parsePortLine(line);
-      if (port) {
-        const key = `${port.port}-${port.protocol}-${port.address}`;
-        portsMap.set(key, port);
-      }
+    let ports: PortInfo[] = [];
+
+    if (tcpData) {
+      const tcpPorts = parseProcNet(tcpData, 'tcp');
+      ports = ports.concat(tcpPorts);
+    }
+
+    if (udpData) {
+      const udpPorts = parseProcNet(udpData, 'udp');
+      ports = ports.concat(udpPorts);
+    }
+
+    const portsMap = new Map<string, PortInfo>();
+    for (const port of ports) {
+      const key = `${port.port}-${port.protocol}-${port.address}`;
+      portsMap.set(key, port);
     }
 
     return portsMap;
@@ -145,9 +183,21 @@ async function checkForPortChanges() {
 function broadcastMessage(message: PortUpdateMessage) {
   const messageStr = JSON.stringify(message);
   
-  portTracker.clients.forEach((client) => {
+  // Create a copy of clients to avoid issues with concurrent modification
+  const clients = Array.from(portTracker.clients);
+  
+  clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(messageStr);
+      try {
+        client.send(messageStr);
+      } catch (error) {
+        console.error('Error sending WebSocket message:', error);
+        // Remove client if there's an error
+        portTracker.clients.delete(client);
+      }
+    } else {
+      // Remove client if not open
+      portTracker.clients.delete(client);
     }
   });
 }
@@ -165,8 +215,8 @@ function startPortMonitoring() {
     portTracker.lastPorts = ports;
   });
 
-  // Poll for changes every 2 seconds
-  portTracker.pollInterval = setInterval(checkForPortChanges, 2000);
+  // Poll for changes every 3 seconds (less frequent to reduce load)
+  portTracker.pollInterval = setInterval(checkForPortChanges, 3000);
 }
 
 /**
@@ -183,7 +233,11 @@ function stopPortMonitoring() {
  * Setup WebSocket server
  */
 export function setupWebSocketServer(server: any) {
-  const wss = new WebSocketServer({ server });
+  const wss = new WebSocketServer({ 
+    server,
+    perMessageDeflate: false, // Disable compression to avoid frame issues
+    maxPayload: 16 * 1024, // 16KB max payload
+  });
 
   wss.on('connection', (ws: WebSocket) => {
     console.log('New WebSocket client connected');
@@ -207,6 +261,12 @@ export function setupWebSocketServer(server: any) {
       }
     });
 
+    // Handle errors
+    ws.on('error', (error) => {
+      console.error('WebSocket error:', error);
+      portTracker.clients.delete(ws);
+    });
+
     // Handle client messages (for future commands)
     ws.on('message', (data: Buffer) => {
       try {
@@ -225,7 +285,13 @@ export function setupWebSocketServer(server: any) {
           port,
           timestamp: Date.now(),
         };
-        ws.send(JSON.stringify(message));
+        try {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify(message));
+          }
+        } catch (error) {
+          console.error('Error sending initial port data:', error);
+        }
       }
     });
   });
