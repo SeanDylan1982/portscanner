@@ -66,7 +66,7 @@ export default function Index() {
   }, [autoRefresh]);
 
   useEffect(() => {
-    fetchPorts();
+    fetchPorts(false); // Initial load
   }, []);
 
   // Filter ports based on search and filters
@@ -86,7 +86,7 @@ export default function Index() {
     // Search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(port => 
+      filtered = filtered.filter(port =>
         port.port.toString().includes(term) ||
         port.processName?.toLowerCase().includes(term) ||
         port.address.toLowerCase().includes(term) ||
@@ -97,7 +97,7 @@ export default function Index() {
     setFilteredPorts(filtered);
   }, [ports, searchTerm, protocolFilter, stateFilter]);
 
-  if (loading) {
+  if (isInitialLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
