@@ -1,17 +1,11 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import { createServer as createHttpServer } from "http";
 import { handleDemo } from "./routes/demo";
 import { handleGetPorts, handleKillProcess, handleGetPortDetails } from "./routes/ports";
-import { setupWebSocketServer } from "./routes/websocket";
 
 export function createServer() {
   const app = express();
-  const server = createHttpServer(app);
-
-  // Setup WebSocket server
-  setupWebSocketServer(server);
 
   // Middleware
   app.use(cors());
@@ -31,5 +25,5 @@ export function createServer() {
   app.get("/api/ports/:port", handleGetPortDetails);
   app.post("/api/ports/kill", handleKillProcess);
 
-  return server;
+  return app;
 }
