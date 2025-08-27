@@ -1,4 +1,5 @@
 import { RequestHandler } from "express";
+import { readFile } from "fs/promises";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { PortInfo, PortsResponse, KillProcessRequest, ProcessOperationResponse } from "@shared/api";
@@ -6,66 +7,91 @@ import { PortInfo, PortsResponse, KillProcessRequest, ProcessOperationResponse }
 const execAsync = promisify(exec);
 
 /**
- * Parse netstat output to extract port information
+ * Convert hex address to IP address
  */
-function parseNetstatOutput(output: string): PortInfo[] {
-  const lines = output.split('\n').slice(1); // Skip header
+function hexToIp(hex: string): string {
+  if (hex.length === 8) {
+    // IPv4
+    const ip = [];
+    for (let i = 6; i >= 0; i -= 2) {
+      ip.push(parseInt(hex.substr(i, 2), 16));
+    }
+    return ip.join('.');
+  } else if (hex.length === 32) {
+    // IPv6 - simplified conversion
+    const ip = [];
+    for (let i = 0; i < 32; i += 4) {
+      ip.push(hex.substr(i, 4));
+    }
+    return ip.join(':').replace(/:(0000:)+/g, '::');
+  }
+  return hex;
+}
+
+/**
+ * Convert hex port to decimal
+ */
+function hexToPort(hex: string): number {
+  return parseInt(hex, 16);
+}
+
+/**
+ * Parse /proc/net/tcp or /proc/net/udp file
+ */
+function parseProcNet(data: string, protocol: "tcp" | "udp"): PortInfo[] {
+  const lines = data.trim().split('\n').slice(1); // Skip header
   const ports: PortInfo[] = [];
 
   for (const line of lines) {
-    if (!line.trim()) continue;
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 10) continue;
 
-    // Different parsing for different OS
-    const isWindows = process.platform === 'win32';
-    
-    if (isWindows) {
-      // Windows netstat format
-      const parts = line.trim().split(/\s+/);
-      if (parts.length >= 5) {
-        const protocol = parts[0].toLowerCase() as "tcp" | "udp";
-        const localAddress = parts[1];
-        const foreignAddress = parts[2];
-        const state = parts[3];
-        const pid = parts[4] ? parseInt(parts[4]) : undefined;
+    try {
+      const localAddress = parts[1];
+      const remoteAddress = parts[2];
+      const state = parts[3];
+      const uid = parts[7];
+      const inode = parts[9];
 
-        const [address, portStr] = localAddress.split(':');
-        const port = parseInt(portStr);
+      const [localHex, localPortHex] = localAddress.split(':');
+      const [remoteHex, remotePortHex] = remoteAddress.split(':');
 
-        if (!isNaN(port)) {
-          ports.push({
-            port,
-            protocol,
-            state: state as any,
-            pid,
-            address: address || '0.0.0.0',
-            foreignAddress: foreignAddress !== '*:*' ? foreignAddress : undefined,
-          });
-        }
+      const port = hexToPort(localPortHex);
+      const address = hexToIp(localHex);
+      const foreignAddress = remoteHex !== '00000000' ? 
+        `${hexToIp(remoteHex)}:${hexToPort(remotePortHex)}` : undefined;
+
+      // Convert state for TCP
+      let stateStr = "UNKNOWN";
+      if (protocol === "tcp") {
+        const stateMap: { [key: string]: string } = {
+          '01': 'ESTABLISHED',
+          '02': 'SYN_SENT',
+          '03': 'SYN_RECV',
+          '04': 'FIN_WAIT1',
+          '05': 'FIN_WAIT2',
+          '06': 'TIME_WAIT',
+          '07': 'CLOSE',
+          '08': 'CLOSE_WAIT',
+          '09': 'LAST_ACK',
+          '0A': 'LISTENING',
+          '0B': 'CLOSING',
+        };
+        stateStr = stateMap[state] || 'UNKNOWN';
+      } else {
+        stateStr = 'LISTENING'; // UDP is always listening
       }
-    } else {
-      // Unix-like systems
-      const parts = line.trim().split(/\s+/);
-      if (parts.length >= 6) {
-        const protocol = parts[0].toLowerCase() as "tcp" | "udp";
-        const localAddress = parts[3];
-        const state = parts[5];
 
-        const lastColonIndex = localAddress.lastIndexOf(':');
-        if (lastColonIndex > 0) {
-          const address = localAddress.substring(0, lastColonIndex);
-          const portStr = localAddress.substring(lastColonIndex + 1);
-          const port = parseInt(portStr);
-
-          if (!isNaN(port)) {
-            ports.push({
-              port,
-              protocol,
-              state: state as any,
-              address: address || '0.0.0.0',
-            });
-          }
-        }
-      }
+      ports.push({
+        port,
+        protocol,
+        state: stateStr as any,
+        address,
+        foreignAddress,
+      });
+    } catch (error) {
+      // Skip malformed lines
+      continue;
     }
   }
 
@@ -73,66 +99,110 @@ function parseNetstatOutput(output: string): PortInfo[] {
 }
 
 /**
- * Get process information for a given PID
+ * Get process information for a given inode
  */
-async function getProcessInfo(pid: number): Promise<{ name?: string; path?: string }> {
+async function getProcessInfoByInode(inode: string): Promise<{ pid?: number; name?: string; path?: string }> {
   try {
-    const isWindows = process.platform === 'win32';
-    const command = isWindows 
-      ? `tasklist /FI "PID eq ${pid}" /FO CSV /NH`
-      : `ps -p ${pid} -o comm=,args=`;
-    
-    const { stdout } = await execAsync(command);
-    
-    if (isWindows) {
-      const lines = stdout.trim().split('\n');
-      if (lines.length > 0) {
-        const parts = lines[0].split(',');
-        if (parts.length >= 2) {
-          return {
-            name: parts[0].replace(/"/g, ''),
-            path: parts[1]?.replace(/"/g, ''),
-          };
-        }
-      }
-    } else {
-      const lines = stdout.trim().split('\n');
-      if (lines.length > 0) {
-        const parts = lines[0].trim().split(/\s+/, 2);
-        return {
-          name: parts[0],
-          path: parts[1],
-        };
-      }
+    // Find processes that have this socket inode
+    const { stdout } = await execAsync(`find /proc/*/fd -lname "*socket:[${inode}]*" 2>/dev/null | head -1`);
+    if (!stdout.trim()) return {};
+
+    const pidMatch = stdout.match(/\/proc\/(\d+)\//);
+    if (!pidMatch) return {};
+
+    const pid = parseInt(pidMatch[1]);
+
+    // Get process name and path
+    try {
+      const [cmdline, exe] = await Promise.all([
+        readFile(`/proc/${pid}/cmdline`, 'utf8').catch(() => ''),
+        readFile(`/proc/${pid}/exe`, 'utf8').catch(() => ''),
+      ]);
+
+      const name = cmdline.split('\0')[0].split('/').pop() || `pid:${pid}`;
+      
+      return {
+        pid,
+        name,
+        path: exe || cmdline.split('\0')[0],
+      };
+    } catch {
+      return { pid };
     }
-  } catch (error) {
-    // Process might have ended
+  } catch {
+    return {};
   }
-  
-  return {};
 }
 
 /**
- * Get all open ports
+ * Get process information for ports using a more efficient method
+ */
+async function enrichPortsWithProcessInfo(ports: PortInfo[]): Promise<PortInfo[]> {
+  // For each unique port, try to find the process
+  const portMap = new Map<string, PortInfo>();
+  
+  for (const port of ports) {
+    const key = `${port.protocol}-${port.port}`;
+    if (!portMap.has(key)) {
+      portMap.set(key, port);
+    }
+  }
+
+  // Try to get process info using lsof-like approach with /proc
+  for (const [key, port] of portMap) {
+    try {
+      // For listening ports, try to find the process more directly
+      if (port.state === 'LISTENING') {
+        const { stdout } = await execAsync(`grep -l ":${port.port.toString(16).toUpperCase().padStart(4, '0')}" /proc/*/net/${port.protocol} 2>/dev/null | head -1`);
+        if (stdout.trim()) {
+          const pidMatch = stdout.match(/\/proc\/(\d+)\//);
+          if (pidMatch) {
+            const pid = parseInt(pidMatch[1]);
+            try {
+              const cmdline = await readFile(`/proc/${pid}/cmdline`, 'utf8');
+              const name = cmdline.split('\0')[0].split('/').pop() || `pid:${pid}`;
+              
+              port.pid = pid;
+              port.processName = name;
+              port.processPath = cmdline.split('\0')[0];
+            } catch {
+              port.pid = pid;
+            }
+          }
+        }
+      }
+    } catch {
+      // Continue without process info
+    }
+  }
+
+  return ports;
+}
+
+/**
+ * Get all open ports using /proc/net
  */
 export const handleGetPorts: RequestHandler = async (req, res) => {
   try {
-    const isWindows = process.platform === 'win32';
-    const command = isWindows 
-      ? 'netstat -ano'
-      : 'netstat -tulpn';
+    const [tcpData, udpData] = await Promise.all([
+      readFile('/proc/net/tcp', 'utf8').catch(() => ''),
+      readFile('/proc/net/udp', 'utf8').catch(() => ''),
+    ]);
 
-    const { stdout } = await execAsync(command);
-    let ports = parseNetstatOutput(stdout);
+    let ports: PortInfo[] = [];
 
-    // Get process information for each port
-    for (const port of ports) {
-      if (port.pid) {
-        const processInfo = await getProcessInfo(port.pid);
-        port.processName = processInfo.name;
-        port.processPath = processInfo.path;
-      }
+    if (tcpData) {
+      const tcpPorts = parseProcNet(tcpData, 'tcp');
+      ports = ports.concat(tcpPorts);
     }
+
+    if (udpData) {
+      const udpPorts = parseProcNet(udpData, 'udp');
+      ports = ports.concat(udpPorts);
+    }
+
+    // Enrich with process information
+    ports = await enrichPortsWithProcessInfo(ports);
 
     // Remove duplicates and sort by port number
     const uniquePorts = Array.from(
@@ -165,12 +235,8 @@ export const handleKillProcess: RequestHandler = async (req, res) => {
       });
     }
 
-    const isWindows = process.platform === 'win32';
-    const command = isWindows 
-      ? `taskkill /PID ${pid} /F`
-      : `kill -9 ${pid}`;
-
-    await execAsync(command);
+    // Use kill command to terminate the process
+    await execAsync(`kill -9 ${pid}`);
 
     const response: ProcessOperationResponse = {
       success: true,
@@ -201,22 +267,28 @@ export const handleGetPortDetails: RequestHandler = async (req, res) => {
       return res.status(400).json({ error: 'Valid port number is required' });
     }
 
-    const isWindows = process.platform === 'win32';
-    const command = isWindows 
-      ? `netstat -ano | findstr :${portNumber}`
-      : `netstat -tulpn | grep :${portNumber}`;
+    const port = parseInt(portNumber);
 
-    const { stdout } = await execAsync(command);
-    const ports = parseNetstatOutput(stdout);
+    // Get all ports and filter by the specific port
+    const [tcpData, udpData] = await Promise.all([
+      readFile('/proc/net/tcp', 'utf8').catch(() => ''),
+      readFile('/proc/net/udp', 'utf8').catch(() => ''),
+    ]);
 
-    // Get process information
-    for (const port of ports) {
-      if (port.pid) {
-        const processInfo = await getProcessInfo(port.pid);
-        port.processName = processInfo.name;
-        port.processPath = processInfo.path;
-      }
+    let ports: PortInfo[] = [];
+
+    if (tcpData) {
+      const tcpPorts = parseProcNet(tcpData, 'tcp').filter(p => p.port === port);
+      ports = ports.concat(tcpPorts);
     }
+
+    if (udpData) {
+      const udpPorts = parseProcNet(udpData, 'udp').filter(p => p.port === port);
+      ports = ports.concat(udpPorts);
+    }
+
+    // Enrich with process information
+    ports = await enrichPortsWithProcessInfo(ports);
 
     res.json({ ports, timestamp: Date.now() });
   } catch (error) {
