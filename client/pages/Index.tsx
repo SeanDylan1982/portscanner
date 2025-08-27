@@ -232,7 +232,7 @@ export default function Index() {
         </Card>
 
         {/* Port Table */}
-        <PortTable ports={filteredPorts} onRefresh={fetchPorts} />
+        <PortTable ports={filteredPorts} onRefresh={() => fetchPorts(true)} isRefreshing={isRefreshing} />
       </main>
     </div>
   );
