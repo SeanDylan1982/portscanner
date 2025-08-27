@@ -33,52 +33,6 @@ export default function Index() {
     return () => clearInterval(interval);
   }, [autoRefresh]);
 
-  // Handle real-time port updates
-  const handlePortUpdate = useCallback((message: PortUpdateMessage) => {
-    setLastUpdate(new Date(message.timestamp));
-    
-    setPorts(prevPorts => {
-      const key = `${message.port.port}-${message.port.protocol}-${message.port.address}`;
-      
-      switch (message.type) {
-        case 'port_added':
-          // Check if port already exists
-          const existingIndex = prevPorts.findIndex(p => 
-            p.port === message.port.port && 
-            p.protocol === message.port.protocol && 
-            p.address === message.port.address
-          );
-          
-          if (existingIndex === -1) {
-            return [...prevPorts, message.port].sort((a, b) => a.port - b.port);
-          }
-          
-          // Update existing port
-          const updated = [...prevPorts];
-          updated[existingIndex] = message.port;
-          return updated;
-          
-        case 'port_removed':
-          return prevPorts.filter(p => 
-            !(p.port === message.port.port && 
-              p.protocol === message.port.protocol && 
-              p.address === message.port.address)
-          );
-          
-        case 'port_changed':
-          return prevPorts.map(p => 
-            p.port === message.port.port && 
-            p.protocol === message.port.protocol && 
-            p.address === message.port.address 
-              ? message.port 
-              : p
-          );
-          
-        default:
-          return prevPorts;
-      }
-    });
-  }, []);
 
   // Initial port data fetch
   const fetchPorts = async () => {
