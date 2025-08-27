@@ -153,7 +153,10 @@ export function PortTable({ ports, onRefresh, isRefreshing = false }: PortTableP
             </TableHeader>
             <TableBody>
               {ports.map((port, index) => (
-                <TableRow key={`${port.port}-${port.protocol}-${port.address}-${index}`}>
+                <TableRow
+                  key={`${port.port}-${port.protocol}-${port.address}-${index}`}
+                  className="transition-all duration-200 ease-in-out"
+                >
                   <TableCell className="font-mono font-medium">
                     {port.port}
                   </TableCell>
