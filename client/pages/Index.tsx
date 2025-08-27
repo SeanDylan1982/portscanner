@@ -145,6 +145,12 @@ export default function Index() {
             
             <div className="flex items-center space-x-4">
               <ConnectionStatus connected={autoRefresh} lastUpdate={lastUpdate} />
+              {isRefreshing && (
+                <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                  <span>Updating...</span>
+                </div>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -157,10 +163,10 @@ export default function Index() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={fetchPorts}
-                disabled={loading}
+                onClick={() => fetchPorts(false)}
+                disabled={isInitialLoading || isRefreshing}
               >
-                <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
+                <RefreshCw className={cn("h-4 w-4 mr-2", (isInitialLoading || isRefreshing) && "animate-spin")} />
                 Refresh
               </Button>
             </div>
